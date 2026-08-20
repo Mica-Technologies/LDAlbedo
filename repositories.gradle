@@ -1,0 +1,5 @@
+// Add any additional repositories for your dependencies here
+
+repositories {
+    // Albedo has no dependencies beyond vanilla Forge, so no extra repositories are needed.
+}
