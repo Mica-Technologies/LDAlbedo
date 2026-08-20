@@ -49,6 +49,36 @@ public class LightManager {
         }
     }
 
+    /**
+     * Submits a light for this frame, subject to the same distance and frustum culling
+     * {@link GatherLightsEvent#add} applies.
+     *
+     * <p>Kept because mods compile against it. Albedo 1.1.0 dropped this method, and anything
+     * built against an earlier version — WeissAlbedo is the one in the wild — then died with
+     * {@code NoSuchMethodError} the moment it tried to contribute a light. It is public API
+     * whether or not Albedo's own code calls it, so removing it again would re-break those mods.
+     *
+     * @param light the light to add; null is ignored, since "nothing to show right now" is a
+     *              normal thing for a provider to report
+     */
+    public static void addLight(Light light) {
+        if (light == null) {
+            return;
+        }
+        float radius = light.radius();
+        double cullDistance = radius + ConfigManager.maxDistance;
+        if (cameraPos != null
+                && cameraPos.squareDistanceTo(light.x, light.y, light.z) > cullDistance * cullDistance) {
+            return;
+        }
+        if (camera != null && !camera.isBoundingBoxInFrustum(new AxisAlignedBB(
+                light.x - radius, light.y - radius, light.z - radius,
+                light.x + radius, light.y + radius, light.z + radius))) {
+            return;
+        }
+        lights.add(light);
+    }
+
     private static Vec3d interpolate(Entity entity, float partialTicks) {
         return new Vec3d(
                 entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * (double) partialTicks,
