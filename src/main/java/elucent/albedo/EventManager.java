@@ -14,6 +14,7 @@ import elucent.albedo.util.TriConsumer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.block.state.IBlockState;
@@ -21,12 +22,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.culling.ICamera;
 import net.minecraft.entity.effect.EntityLightningBolt;
 import net.minecraft.tileentity.TileEntityEndGateway;
 import net.minecraft.tileentity.TileEntityEndPortal;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.DimensionType;
 import net.minecraft.world.World;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -38,43 +37,113 @@ import org.lwjgl.opengl.GL11;
 public class EventManager {
     public static final Map<BlockPos, List<Light>> EXISTING = Collections.synchronizedMap(new HashMap<>());
     public static boolean isGui = false;
+
+    /**
+     * How many block positions the incremental scan visits per client tick. The scan volume is
+     * {@code (maxDistance + 1)^3} — 274,625 positions at the default range — so this sets the
+     * refresh rate: at 16,384 per tick a full sweep completes in roughly 17 ticks, just under a
+     * second, which is well inside the window where a light appearing feels immediate.
+     */
+    private static final int SCAN_BUDGET_PER_TICK = 16384;
+
     int ticks = 0;
     boolean postedLights = false;
     boolean precedesEntities = true;
     String section = "";
-    Thread thread;
 
-    // NOTE: not thread-safe (see upstream issue #3) - carried over as-is from the recovered 1.12.2 source.
+    /** Cursor into the sweep currently in progress; null when a fresh sweep is due. */
+    private Iterator<BlockPos.MutableBlockPos> scanCursor;
+
+    /**
+     * Formerly spawned a background thread that scanned world blocks for light handlers.
+     *
+     * <p>That was unsafe: {@code World#getBlockState} was being called off the client thread,
+     * racing chunk load/unload, which could take the game down when a chunk went away
+     * mid-scan. Scanning now happens incrementally on the client thread — see
+     * {@link #scanBlockLights()} — so there is no longer a thread to start.
+     *
+     * @deprecated retained as a no-op so anything that called it keeps linking. Does nothing.
+     */
+    @Deprecated
     public void startThread() {
-        this.thread = new Thread(() -> {
-            while (!this.thread.isInterrupted()) {
-                if (Minecraft.getMinecraft().player == null) continue;
-                EntityPlayerSP player = Minecraft.getMinecraft().player;
-                if (Minecraft.getMinecraft().world == null) continue;
-                WorldClient reader = Minecraft.getMinecraft().world;
-                BlockPos playerPos = player.getPosition();
-                int maxDistance = ConfigManager.maxDistance;
-                int r = maxDistance / 2;
-                Iterable<BlockPos.MutableBlockPos> posIterable = BlockPos.getAllInBoxMutable(playerPos.add(-r, -r, -r), playerPos.add(r, r, r));
-                for (BlockPos.MutableBlockPos pos : posIterable) {
-                    Vec3d cameraPosition = LightManager.cameraPos;
-                    ICamera camera = LightManager.camera;
-                    IBlockState state = reader.getBlockState(pos);
-                    ArrayList<Light> lights = new ArrayList<>();
-                    GatherLightsEvent lightsEvent = new GatherLightsEvent(lights, maxDistance, cameraPosition, camera);
-                    TriConsumer<BlockPos, IBlockState, GatherLightsEvent> consumer = Albedo.getLightHandler(state.getBlock());
-                    if (consumer != null) {
-                        consumer.apply(pos, state, lightsEvent);
-                    }
-                    if (lights.isEmpty()) {
-                        EXISTING.remove(pos);
-                        continue;
-                    }
-                    EXISTING.put(pos.toImmutable(), lights);
-                }
+        // No-op. Scanning is driven from clientTick.
+    }
+
+    /**
+     * Visits a bounded slice of the blocks around the player each tick, recording lights from
+     * any registered block handler into {@link #EXISTING}.
+     *
+     * <p>Runs on the client thread, which is what makes the world access here legal. The work
+     * is budgeted rather than done in one pass so a full sweep costs a fraction of a tick
+     * instead of stalling the frame.
+     */
+    private void scanBlockLights() {
+        Minecraft mc = Minecraft.getMinecraft();
+        EntityPlayerSP player = mc.player;
+        WorldClient world = mc.world;
+
+        // No world, or nothing registered any block lights: keep no state and do no work. A
+        // bare Albedo install with no dependent mods never gets past this point.
+        if (player == null || world == null || Albedo.getBlockHandlers().isEmpty()) {
+            if (!EXISTING.isEmpty()) {
+                EXISTING.clear();
             }
-        });
-        this.thread.start();
+            this.scanCursor = null;
+            return;
+        }
+
+        int maxDistance = ConfigManager.maxDistance;
+        if (this.scanCursor == null || !this.scanCursor.hasNext()) {
+            // Previous sweep finished (or none started): re-centre on where the player is now.
+            // Anything that has drifted out of range is dropped, since this sweep will not
+            // visit those positions to clear them individually.
+            int r = maxDistance / 2;
+            BlockPos playerPos = player.getPosition();
+            pruneOutOfRange(playerPos, r);
+            this.scanCursor = BlockPos.getAllInBoxMutable(
+                    playerPos.add(-r, -r, -r), playerPos.add(r, r, r)).iterator();
+        }
+
+        for (int budget = SCAN_BUDGET_PER_TICK; budget > 0 && this.scanCursor.hasNext(); budget--) {
+            BlockPos.MutableBlockPos pos = this.scanCursor.next();
+
+            // Chunks stream in and out constantly; asking an unloaded one for its state is the
+            // exact call that used to be a race. On the client thread it is merely wrong, so
+            // skip it and let a later sweep pick the block up once the chunk is present.
+            if (!world.isBlockLoaded(pos, false)) {
+                EXISTING.remove(pos);
+                continue;
+            }
+
+            IBlockState state = world.getBlockState(pos);
+            TriConsumer<BlockPos, IBlockState, GatherLightsEvent> consumer =
+                    Albedo.getLightHandler(state.getBlock());
+            if (consumer == null) {
+                // Overwhelmingly the common case. Checking before allocating matters: the old
+                // code built a list and an event for every position in the volume.
+                EXISTING.remove(pos);
+                continue;
+            }
+
+            ArrayList<Light> lights = new ArrayList<>();
+            consumer.apply(pos, state, new GatherLightsEvent(
+                    lights, maxDistance, LightManager.cameraPos, LightManager.camera));
+            if (lights.isEmpty()) {
+                EXISTING.remove(pos);
+            } else {
+                EXISTING.put(pos.toImmutable(), lights);
+            }
+        }
+    }
+
+    /** Drops recorded lights that the sweep starting at {@code centre} will not reach. */
+    private static void pruneOutOfRange(BlockPos centre, int r) {
+        synchronized (EXISTING) {
+            EXISTING.keySet().removeIf(pos ->
+                    Math.abs(pos.getX() - centre.getX()) > r
+                            || Math.abs(pos.getY() - centre.getY()) > r
+                            || Math.abs(pos.getZ() - centre.getZ()) > r);
+        }
     }
 
     @SubscribeEvent
@@ -90,10 +159,9 @@ public class EventManager {
                 ShaderUtil.fastLightProgram.setUniform("lightmap", 1);
                 ShaderUtil.fastLightProgram.setUniform("playerPos", (float) Minecraft.getMinecraft().player.posX, (float) Minecraft.getMinecraft().player.posY, (float) Minecraft.getMinecraft().player.posZ);
                 if (!this.postedLights) {
-                    if (this.thread == null || !this.thread.isAlive()) {
-                        this.startThread();
+                    synchronized (EXISTING) {
+                        EXISTING.forEach((pos, lights) -> LightManager.lights.addAll(lights));
                     }
-                    EXISTING.forEach((pos, lights) -> LightManager.lights.addAll(lights));
                     LightManager.update(Minecraft.getMinecraft().world);
                     ShaderManager.stopShader();
                     MinecraftForge.EVENT_BUS.post(new LightUniformEvent());
@@ -207,6 +275,12 @@ public class EventManager {
     public void clientTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.START) {
             ++this.ticks;
+            if (ConfigManager.isLightingEnabled()) {
+                this.scanBlockLights();
+            } else if (!EXISTING.isEmpty()) {
+                EXISTING.clear();
+                this.scanCursor = null;
+            }
         }
     }
 

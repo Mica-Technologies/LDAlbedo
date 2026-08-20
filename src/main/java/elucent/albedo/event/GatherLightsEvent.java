@@ -39,6 +39,12 @@ public class GatherLightsEvent extends Event {
     }
 
     public void add(Light light) {
+        // ILightProvider#provideLight is @Nullable and its default implementation returns null,
+        // so every provider that only implements gatherLights feeds a null through here.
+        // Dropping it silently is correct: "this provider has no light right now" is normal.
+        if (light == null) {
+            return;
+        }
         float radius = light.radius();
         if (this.cameraPosition != null) {
             double dist = MathHelper.sqrt(this.cameraPosition.squareDistanceTo(light.x, light.y, light.z));

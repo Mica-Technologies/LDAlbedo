@@ -17,6 +17,13 @@ public class Light {
     public float rz;
     public float angle;
 
+    /**
+     * Creates an omnidirectional point light of the given radius.
+     * <p>
+     * The angle is a full sphere: the shader's cone attenuation divides by it, so leaving it
+     * at zero collapses the light to zero intensity and it renders nothing at all. This
+     * matches what {@link Builder#radius(float)} produces.
+     */
     public Light(float x, float y, float z, float r, float g, float b, float a, float radius) {
         this.x = x;
         this.y = y;
@@ -28,6 +35,7 @@ public class Light {
         this.rx = 0.0f;
         this.ry = radius;
         this.rz = 0.0f;
+        this.angle = (float) Math.PI * 2;
     }
 
     public Light(float x, float y, float z, float r, float g, float b, float a, float rx, float ry, float rz, float angle) {
