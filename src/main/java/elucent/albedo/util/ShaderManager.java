@@ -11,8 +11,8 @@ public class ShaderManager {
 
     public ShaderManager(ResourceLocation shader, IResourceManager resourceManager) {
         this.program = ShaderUtil.loadProgram(
-                String.format("%s:shaders/%s.vs", shader.getResourceDomain(), shader.getResourcePath()),
-                String.format("%s:shaders/%s.fs", shader.getResourceDomain(), shader.getResourcePath()),
+                String.format("%s:shaders/%s.vs", shader.getNamespace(), shader.getPath()),
+                String.format("%s:shaders/%s.fs", shader.getNamespace(), shader.getPath()),
                 resourceManager);
     }
 

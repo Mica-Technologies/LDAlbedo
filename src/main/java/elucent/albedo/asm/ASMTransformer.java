@@ -142,7 +142,7 @@ public class ASMTransformer implements IClassTransformer {
             InsnList code = m.instructions;
             int paramloc = 1;
             AbstractInsnNode returnNode = null;
-            for (AbstractInsnNode insn : code) {
+            for (AbstractInsnNode insn : code.toArray()) {
                 if (insn.getOpcode() != 177) continue;
                 returnNode = insn;
                 break;
@@ -176,7 +176,7 @@ public class ASMTransformer implements IClassTransformer {
             InsnList code = m.instructions;
             int paramloc = 1;
             AbstractInsnNode returnNode = null;
-            for (AbstractInsnNode insn : code) {
+            for (AbstractInsnNode insn : code.toArray()) {
                 if (insn.getOpcode() != 177) continue;
                 returnNode = insn;
                 break;
@@ -238,7 +238,7 @@ public class ASMTransformer implements IClassTransformer {
                 paramloc = i;
             }
             AbstractInsnNode returnNode = null;
-            for (AbstractInsnNode insn : code) {
+            for (AbstractInsnNode insn : code.toArray()) {
                 if (insn.getOpcode() != 177) continue;
                 returnNode = insn;
                 break;
