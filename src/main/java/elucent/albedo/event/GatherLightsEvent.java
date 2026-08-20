@@ -1,14 +1,13 @@
-package com.hrznstudio.albedo.event;
+package elucent.albedo.event;
 
 import com.google.common.collect.ImmutableList;
-import com.hrznstudio.albedo.lighting.Light;
+import elucent.albedo.lighting.Light;
+import java.util.ArrayList;
 import net.minecraft.client.renderer.culling.ICamera;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraftforge.eventbus.api.Event;
-
-import java.util.ArrayList;
+import net.minecraftforge.fml.common.eventhandler.Event;
 
 public class GatherLightsEvent extends Event {
     private final ArrayList<Light> lights;
@@ -24,41 +23,35 @@ public class GatherLightsEvent extends Event {
     }
 
     public ImmutableList<Light> getLightList() {
-        return ImmutableList.copyOf(lights);
+        return ImmutableList.copyOf(this.lights);
     }
 
     public float getMaxDistance() {
-        return maxDistance;
+        return this.maxDistance;
     }
 
     public Vec3d getCameraPosition() {
-        return cameraPosition;
+        return this.cameraPosition;
     }
 
     public ICamera getCamera() {
-        return camera;
+        return this.camera;
     }
 
     public void add(Light light) {
-    	float radius = light.radius();
-        if(cameraPosition!=null) {
-            double dist = MathHelper.sqrt(cameraPosition.squareDistanceTo(light.x, light.y, light.z));
-            if (dist > radius + maxDistance) {
+        float radius = light.radius();
+        if (this.cameraPosition != null) {
+            double dist = MathHelper.sqrt(this.cameraPosition.squareDistanceTo(light.x, light.y, light.z));
+            if (dist > (double) (radius + this.maxDistance)) {
                 return;
             }
         }
-
-        if (camera != null && !camera.isBoundingBoxInFrustum(new AxisAlignedBB(
-                light.x - radius,
-                light.y - radius,
-                light.z - radius,
-                light.x + radius,
-                light.y + radius,
-                light.z + radius
-        ))) {
+        if (this.camera != null && !this.camera.isBoundingBoxInFrustum(new AxisAlignedBB(
+                light.x - radius, light.y - radius, light.z - radius,
+                light.x + radius, light.y + radius, light.z + radius))) {
             return;
         }
-        lights.add(light);
+        this.lights.add(light);
     }
 
     @Override

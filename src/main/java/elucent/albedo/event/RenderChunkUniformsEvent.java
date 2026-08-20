@@ -1,18 +1,17 @@
-package com.hrznstudio.albedo.event;
+package elucent.albedo.event;
 
 import net.minecraft.client.renderer.chunk.RenderChunk;
-import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.fml.common.eventhandler.Event;
 
 public class RenderChunkUniformsEvent extends Event {
     private final RenderChunk renderChunk;
 
     public RenderChunkUniformsEvent(RenderChunk r) {
-        super();
         this.renderChunk = r;
     }
 
     public RenderChunk getChunk() {
-        return renderChunk;
+        return this.renderChunk;
     }
 
     @Override

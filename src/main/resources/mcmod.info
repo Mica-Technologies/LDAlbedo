@@ -1,0 +1,16 @@
+[
+{
+  "modid": "${modid}",
+  "name": "${modname}",
+  "description": "Effects and lighting library.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "https://hrznstudio.com",
+  "updateUrl": "",
+  "authorList": ["Horizon Studio", "Coded", "Elucent"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]

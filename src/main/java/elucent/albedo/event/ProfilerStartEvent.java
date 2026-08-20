@@ -1,13 +1,12 @@
-package com.hrznstudio.albedo.event;
+package elucent.albedo.event;
 
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.fml.common.eventhandler.Event;
 
 public class ProfilerStartEvent extends Event {
     private final String section;
 
     private ProfilerStartEvent(String section) {
-        super();
         this.section = section;
     }
 
@@ -16,7 +15,7 @@ public class ProfilerStartEvent extends Event {
     }
 
     public String getSection() {
-        return section;
+        return this.section;
     }
 
     @Override

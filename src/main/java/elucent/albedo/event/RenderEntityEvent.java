@@ -1,14 +1,13 @@
-package com.hrznstudio.albedo.event;
+package elucent.albedo.event;
 
 import net.minecraft.entity.Entity;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.fml.common.eventhandler.Event;
 
 public class RenderEntityEvent extends Event {
     private final Entity e;
 
     private RenderEntityEvent(Entity e) {
-        super();
         this.e = e;
     }
 
@@ -17,7 +16,7 @@ public class RenderEntityEvent extends Event {
     }
 
     public Entity getEntity() {
-        return e;
+        return this.e;
     }
 
     @Override

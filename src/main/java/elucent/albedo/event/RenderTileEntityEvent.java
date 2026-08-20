@@ -1,14 +1,13 @@
-package com.hrznstudio.albedo.event;
+package elucent.albedo.event;
 
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.fml.common.eventhandler.Event;
 
 public class RenderTileEntityEvent extends Event {
     private final TileEntity e;
 
     private RenderTileEntityEvent(TileEntity e) {
-        super();
         this.e = e;
     }
 
@@ -17,7 +16,7 @@ public class RenderTileEntityEvent extends Event {
     }
 
     public TileEntity getEntity() {
-        return e;
+        return this.e;
     }
 
     @Override
