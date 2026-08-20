@@ -38,6 +38,21 @@ public class ConfigManager {
     @Config.LangKey("albedo.config.enableOcclusion")
     public static boolean enableOcclusion = false;
 
+    @Config.Comment({
+            "Bind Albedo's shaders even when another mod already has one bound.",
+            "",
+            "Albedo normally stands down while another mod owns the shader pipeline, because",
+            "binding over it corrupts that mod's rendering. BetterPortals drawing its portals into",
+            "the world is the usual example. The cost is that Albedo's lighting does not draw for",
+            "as long as the other mod holds the pipeline.",
+            "",
+            "Turn this on only to diagnose a mod that holds a shader bound more widely than it",
+            "should, or if you would rather have Albedo's lighting than that mod's rendering be",
+            "correct. Expect visual corruption in one mod or the other."
+    })
+    @Config.LangKey("albedo.config.ignoreForeignShaders")
+    public static boolean ignoreForeignShaders = false;
+
     public static boolean isLightingEnabled() {
         return !disableLights;
     }

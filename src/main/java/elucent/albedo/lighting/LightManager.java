@@ -33,6 +33,11 @@ public class LightManager {
 
     public static void uploadLights() {
         ShaderManager shader = ShaderManager.getCurrentShader();
+        if (shader == null) {
+            // Nothing of ours is bound — most likely another mod owns the pipeline and Albedo
+            // has stood down for it. There is nowhere to put these uniforms.
+            return;
+        }
         shader.setUniform("lightCount", lights.size());
         for (int i = 0; i < Math.min(ConfigManager.maxLights, lights.size()); ++i) {
             if (i >= lights.size()) continue;

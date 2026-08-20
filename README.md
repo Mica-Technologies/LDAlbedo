@@ -50,6 +50,19 @@ surface it would light is visible, and any block with a collision box counts as
 blocking, so glass and leaves occlude too. Leave it off unless light shining
 through walls bothers you more than the performance cost does.
 
+**`ignoreForeignShaders`** (default `false`) — bind Albedo's shaders even when
+another mod already has one bound.
+
+Albedo normally stands down while another mod owns the shader pipeline, because
+binding over it corrupts that mod's rendering — BetterPortals drawing its portals
+into the world is the usual example. The cost is that Albedo's lighting does not
+draw for as long as the other mod holds the pipeline, and it logs a line the
+first time this happens so it is diagnosable.
+
+Turn this on only to diagnose a mod holding a shader bound more widely than it
+should, or if you would rather have Albedo's lighting than that mod's rendering
+be correct. Expect visual corruption in one mod or the other.
+
 ## Documentation
 
 See [`CLAUDE.md`](CLAUDE.md) for build instructions, source layout, and an
