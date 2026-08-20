@@ -6,6 +6,7 @@ import elucent.albedo.event.GatherLightsEvent;
 import elucent.albedo.util.ShaderManager;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.culling.ICamera;
@@ -14,6 +15,7 @@ import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
@@ -99,6 +101,48 @@ public class LightManager {
             provider.gatherLights(event, null);
         }
         lights.sort(distComparator);
+
+        if (ConfigManager.isOcclusionEnabled()) {
+            cullOccluded(world, cameraEntity.getPositionEyes(mc.getRenderPartialTicks()));
+        }
+    }
+
+    /**
+     * Removes lights that cannot be seen from {@code eyes} because solid blocks are in the way.
+     *
+     * <p>Off by default. Albedo does not consult Minecraft's lighting engine at all — that is
+     * what makes it cheap — so without this, light passes straight through walls. Expects
+     * {@link #lights} to already be sorted nearest-first.
+     */
+    private static void cullOccluded(World world, Vec3d eyes) {
+        // Only the nearest maxLights entries are ever uploaded. Once that many have survived,
+        // the rest are dropped untested: paying for a raytrace whose answer nobody reads is
+        // exactly the cost this feature is already being criticised for.
+        int budget = ConfigManager.maxLights;
+        Iterator<Light> iter = lights.iterator();
+        while (iter.hasNext()) {
+            Light light = iter.next();
+            if (budget <= 0 || isOccluded(world, eyes, light)) {
+                iter.remove();
+            } else {
+                budget--;
+            }
+        }
+    }
+
+    /** True when solid geometry stands between {@code eyes} and {@code light}. */
+    private static boolean isOccluded(World world, Vec3d eyes, Light light) {
+        Vec3d lightPos = new Vec3d(light.x, light.y, light.z);
+        // Blocks without a collision box (air, torches, crops) are ignored, so they do not
+        // occlude. Blocks that have one do — including glass, which is the main inaccuracy here.
+        RayTraceResult hit = world.rayTraceBlocks(eyes, lightPos, false, true, false);
+        if (hit == null) {
+            return false;
+        }
+        // A light attached to a block sits inside that block, so the ray always ends by hitting
+        // it. Only treat the hit as occlusion when it happens meaningfully short of the light,
+        // otherwise every block light would occlude itself and never render.
+        return hit.hitVec.distanceTo(eyes) < lightPos.distanceTo(eyes) - 1.5;
     }
 
     public static void clear() {

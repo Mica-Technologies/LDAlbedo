@@ -22,7 +22,27 @@ public class ConfigManager {
     @Config.LangKey("albedo.config.holidy")
     public static boolean holiday = true;
 
+    @Config.Comment({
+            "Hide lights whose line of sight to the camera is blocked by solid blocks.",
+            "",
+            "Albedo is cosmetic lighting: it does not touch Minecraft's own lighting engine, which",
+            "is why it is cheap, and it is also why light bleeds through walls by default.",
+            "Enabling this traces a ray from the camera to each light and drops the ones that are",
+            "blocked, which stops the bleed at the cost of one raytrace per visible light per frame.",
+            "",
+            "It is deliberately approximate. A light around a corner is hidden even when the surface",
+            "it would light is visible, and any block with a collision box counts as blocking, so",
+            "glass and leaves occlude too. Leave this off unless light shining through walls bothers",
+            "you more than the performance cost does."
+    })
+    @Config.LangKey("albedo.config.enableOcclusion")
+    public static boolean enableOcclusion = false;
+
     public static boolean isLightingEnabled() {
         return !disableLights;
+    }
+
+    public static boolean isOcclusionEnabled() {
+        return enableOcclusion;
     }
 }

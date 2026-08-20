@@ -30,6 +30,26 @@ The Java package (`elucent.albedo`) is kept exactly as upstream shipped it —
 it's a public API surface other mods compile against directly, so it can't
 change just because the fork changed hands.
 
+## Configuration
+
+Options live in `config/Albedo.cfg`. Most are self-explanatory; this one is worth
+calling out:
+
+**`enableOcclusion`** (default `false`) — hide lights whose line of sight to the
+camera is blocked by solid blocks.
+
+Albedo is *cosmetic* lighting: it never touches Minecraft's own lighting engine,
+which is what makes it cheap, and is also why light bleeds through walls by
+default. That behaviour is inherited from upstream and is intentional there.
+Turning this on traces a ray from the camera to each visible light and drops the
+ones that are blocked, at the cost of one raytrace per visible light per frame
+(bounded by `maxLights`).
+
+It is deliberately approximate: a light around a corner is hidden even when the
+surface it would light is visible, and any block with a collision box counts as
+blocking, so glass and leaves occlude too. Leave it off unless light shining
+through walls bothers you more than the performance cost does.
+
 ## Documentation
 
 See [`CLAUDE.md`](CLAUDE.md) for build instructions, source layout, and an
