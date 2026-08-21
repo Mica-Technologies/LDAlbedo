@@ -92,6 +92,13 @@ void main() {
 		}
 	}
 
+	// Weight each light by its share of the total. A light can sit inside its radius and
+	// still contribute nothing - a zero cone angle, or a point exactly at the edge of the
+	// falloff - and every such light leaves totalIntens at zero while this loop still runs.
+	// Dividing then gives 0/0, and the resulting NaN spreads through lcolor into the
+	// fragment shader, where it turns the surface black rather than leaving it unlit.
+	float intensShare = (totalIntens > 0.0f) ? (1.0f / totalIntens) : 0.0f;
+
 	//find the color, whose brightness gets scaled by the total light intensity
 	for (int i = 0; i < lightCount; i ++) {
 		float radius = length(lights[i].heading);
@@ -110,9 +117,9 @@ void main() {
 			float faceexposure = 1.0f;
 			float intensity = combIntensity * 1.0f * lights[i].color.w * ((max(0,faceexposure)+0.5f)/1.5f);
 			
-			sumR += (intensity/totalIntens)*lights[i].color.x;
-			sumG += (intensity/totalIntens)*lights[i].color.y;
-			sumB += (intensity/totalIntens)*lights[i].color.z;
+			sumR += (intensity*intensShare)*lights[i].color.x;
+			sumG += (intensity*intensShare)*lights[i].color.y;
+			sumB += (intensity*intensShare)*lights[i].color.z;
 		}
 	}
 
