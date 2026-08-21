@@ -56,7 +56,7 @@ src/main/java/elucent/albedo/
 ├── asm/                       # Coremod (loaded via FMLCorePlugin, not a mod class)
 │   ├── FMLPlugin.java         #   IFMLLoadingPlugin entry point
 │   ├── AlbedoCore.java        #   DummyModContainer wrapping the coremod as a "mod" for FML
-│   └── ASMTransformer.java    #   IClassTransformer — bytecode-patches 5 vanilla/Forge classes
+│   └── ASMTransformer.java    #   IClassTransformer — bytecode-patches 6 vanilla/Forge classes
 │                              #   to inject static hook calls (see Key Subsystems below)
 │
 ├── event/                     # POJO events posted by the ASM hooks and consumed by EventManager
@@ -84,12 +84,12 @@ src/main/java/elucent/albedo/
 
 | Subsystem | Purpose | Key Classes |
 |---|---|---|
-| **ASM Coremod** | Patches 5 vanilla/Forge classes at class-load time to inject hook calls Albedo needs but Forge doesn't expose as events | `asm/ASMTransformer.java` — targets `ChunkRenderContainer#preRenderChunk`, `RenderManager#renderEntity`, `TileEntityRendererDispatcher#render`, `GlStateManager#enableLighting`/`disableLighting`, `Profiler#endStartSection` |
+| **ASM Coremod** | Patches 6 vanilla/Forge classes at class-load time to inject hook calls Albedo needs but Forge doesn't expose as events | `asm/ASMTransformer.java` — targets `ChunkRenderContainer#preRenderChunk`, `RenderManager#renderEntity`, `TileEntityRendererDispatcher#render`, `GlStateManager#enableLighting`/`disableLighting`, `Profiler#endStartSection`, `ForgeHooksClient#handleCameraTransforms`. See [`docs/COREMOD.md`](docs/COREMOD.md) |
 | **Render State Machine** | Decides which shader is active based on which vanilla render pass (profiler section) is currently running | `EventManager.java`, driven by `ProfilerStartEvent` |
 | **Light Collection** | Gathers lights from block/entity/TE providers each frame, culls, and uploads to the active shader | `lighting/LightManager.java`, `event/GatherLightsEvent.java` |
 | **Capability API** | Lets other mods attach custom light-emission logic to entities/tile entities | `lighting/ILightProvider.java`, `Albedo.LIGHT_PROVIDER_CAPABILITY` |
 | **Block Light Registry** | Static registry so blocks can declare light-emission behavior without a capability | `Albedo.registerBlockHandler`/`getLightHandler` |
-| **Shaders** | GLSL programs for depth prepass, per-entity lighting, and chunk-uniform "fastlight" terrain lighting | `util/ShaderManager.java`, `assets/albedo/shaders/{depth,entitylight,fastlight}.{vs,fs}` |
+| **Shaders** | GLSL for terrain (`fastlight`) and entities (`entitylight`); `depth` is compiled but never bound | `util/ShaderManager.java`, `assets/albedo/shaders/*.{vs,fs}`. See [`docs/SHADERS.md`](docs/SHADERS.md) |
 
 ### Entry Points
 
@@ -120,8 +120,17 @@ src/main/resources/
 shipped 1.12.2 jar, kept around for verifying ports/fixes against the real
 original behavior. Never commit it.
 
-## In-depth planning
+## In-depth system documentation
+
+`docs/` holds a document per subsystem. Start at [`docs/README.md`](docs/README.md),
+which indexes them and carries an architecture diagram.
+
+- [`docs/API.md`](docs/API.md) — the public API, for mods adding lights
+- [`docs/RENDER_PIPELINE.md`](docs/RENDER_PIPELINE.md) — the profiler-driven render state machine
+- [`docs/LIGHT_COLLECTION.md`](docs/LIGHT_COLLECTION.md) — light sources, culling, occlusion
+- [`docs/SHADERS.md`](docs/SHADERS.md) — GLSL, uniforms, camera-relative coordinates
+- [`docs/COREMOD.md`](docs/COREMOD.md) — the ASM patches
+- [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) — config options
 
 `docs/agent-plans/` (gitignored) holds phased implementation plans for larger
-pieces of work — see that directory for the current plan addressing the
-upstream issue backlog.
+pieces of work, including the current plan for the upstream issue backlog.

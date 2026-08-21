@@ -32,41 +32,34 @@ change just because the fork changed hands.
 
 ## Configuration
 
-Options live in `config/Albedo.cfg`. Most are self-explanatory; this one is worth
-calling out:
+Options live in `config/Albedo.cfg`. Two are worth knowing about, both **off by
+default**:
 
-**`enableOcclusion`** (default `false`) — hide lights whose line of sight to the
-camera is blocked by solid blocks.
+- **`enableOcclusion`** — stop light passing through walls. Albedo is *cosmetic*
+  lighting and never consults Minecraft's lighting engine, which is what makes it
+  cheap and is also why light bleeds by default. Enabling this costs one raytrace
+  per visible light per frame.
+- **`ignoreForeignShaders`** — bind Albedo's shaders even when another mod
+  already has one bound. Albedo normally stands down so it does not corrupt that
+  mod's rendering.
 
-Albedo is *cosmetic* lighting: it never touches Minecraft's own lighting engine,
-which is what makes it cheap, and is also why light bleeds through walls by
-default. That behaviour is inherited from upstream and is intentional there.
-Turning this on traces a ray from the camera to each visible light and drops the
-ones that are blocked, at the cost of one raytrace per visible light per frame
-(bounded by `maxLights`).
-
-It is deliberately approximate: a light around a corner is hidden even when the
-surface it would light is visible, and any block with a collision box counts as
-blocking, so glass and leaves occlude too. Leave it off unless light shining
-through walls bothers you more than the performance cost does.
-
-**`ignoreForeignShaders`** (default `false`) — bind Albedo's shaders even when
-another mod already has one bound.
-
-Albedo normally stands down while another mod owns the shader pipeline, because
-binding over it corrupts that mod's rendering — BetterPortals drawing its portals
-into the world is the usual example. The cost is that Albedo's lighting does not
-draw for as long as the other mod holds the pipeline, and it logs a line the
-first time this happens so it is diagnosable.
-
-Turn this on only to diagnose a mod holding a shader bound more widely than it
-should, or if you would rather have Albedo's lighting than that mod's rendering
-be correct. Expect visual corruption in one mod or the other.
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md) documents every option, the
+trade-offs, and how to tune them.
 
 ## Documentation
 
-See [`CLAUDE.md`](CLAUDE.md) for build instructions, source layout, and an
-overview of how the ASM coremod hooks into vanilla rendering.
+Full technical documentation lives in [`docs/`](docs/):
+
+| Document | Covers |
+| --- | --- |
+| [docs/API.md](docs/API.md) | **Adding lights from your own mod** |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every config option and how to tune it |
+| [docs/RENDER_PIPELINE.md](docs/RENDER_PIPELINE.md) | How a frame is drawn; the profiler-driven state machine |
+| [docs/LIGHT_COLLECTION.md](docs/LIGHT_COLLECTION.md) | Where lights come from, culling, occlusion |
+| [docs/SHADERS.md](docs/SHADERS.md) | The GLSL, uniforms, and the camera-relative coordinate system |
+| [docs/COREMOD.md](docs/COREMOD.md) | The bytecode patches and why each exists |
+
+See [`CLAUDE.md`](CLAUDE.md) for build commands and repo layout.
 
 ## Contributing
 
