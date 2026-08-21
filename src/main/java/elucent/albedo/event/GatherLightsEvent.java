@@ -47,14 +47,14 @@ public class GatherLightsEvent extends Event {
         }
         float radius = light.radius();
         if (this.cameraPosition != null) {
-            double dist = MathHelper.sqrt(this.cameraPosition.squareDistanceTo(light.x, light.y, light.z));
+            double dist = MathHelper.sqrt(this.cameraPosition.squareDistanceTo(light.worldX, light.worldY, light.worldZ));
             if (dist > (double) (radius + this.maxDistance)) {
                 return;
             }
         }
         if (this.camera != null && !this.camera.isBoundingBoxInFrustum(new AxisAlignedBB(
-                light.x - radius, light.y - radius, light.z - radius,
-                light.x + radius, light.y + radius, light.z + radius))) {
+                light.worldX - radius, light.worldY - radius, light.worldZ - radius,
+                light.worldX + radius, light.worldY + radius, light.worldZ + radius))) {
             return;
         }
         this.lights.add(light);

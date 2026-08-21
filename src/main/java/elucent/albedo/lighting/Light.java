@@ -5,9 +5,29 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
 public class Light {
+    /**
+     * Position as a 32-bit float.
+     *
+     * <p>Public API, so it stays. Be aware that past 2^23 blocks from the origin a float cannot
+     * hold a block coordinate exactly and these snap — first to whole blocks, then to two, then
+     * four. {@link #worldX}/{@link #worldY}/{@link #worldZ} carry the position Albedo actually
+     * renders from and do not have that problem.
+     */
     public float x;
     public float y;
     public float z;
+
+    /**
+     * Position in full double precision. This is what rendering uses.
+     *
+     * <p>Kept alongside the float fields rather than replacing them: mods read {@link #x} and
+     * changing its type would break every one of them at link time, which is precisely how
+     * upstream #11 and #2 came about.
+     */
+    public double worldX;
+    public double worldY;
+    public double worldZ;
+
     public float r;
     public float g;
     public float b;
@@ -25,23 +45,28 @@ public class Light {
      * matches what {@link Builder#radius(float)} produces.
      */
     public Light(float x, float y, float z, float r, float g, float b, float a, float radius) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.r = r;
-        this.g = g;
-        this.b = b;
-        this.a = a;
-        this.rx = 0.0f;
-        this.ry = radius;
-        this.rz = 0.0f;
-        this.angle = (float) Math.PI * 2;
+        this(x, y, z, r, g, b, a, 0.0f, radius, 0.0f, (float) Math.PI * 2);
+    }
+
+    /** Point light at a position given in full precision. */
+    public Light(double x, double y, double z, float r, float g, float b, float a, float radius) {
+        this(x, y, z, r, g, b, a, 0.0f, radius, 0.0f, (float) Math.PI * 2);
     }
 
     public Light(float x, float y, float z, float r, float g, float b, float a, float rx, float ry, float rz, float angle) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
+        this((double) x, (double) y, (double) z, r, g, b, a, rx, ry, rz, angle);
+    }
+
+    /** Cone light at a position given in full precision. */
+    public Light(double x, double y, double z, float r, float g, float b, float a, float rx, float ry, float rz, float angle) {
+        this.worldX = x;
+        this.worldY = y;
+        this.worldZ = z;
+        // Mirrored for the public float fields other mods read. Lossy far from the origin, which
+        // is exactly why rendering uses the doubles instead.
+        this.x = (float) x;
+        this.y = (float) y;
+        this.z = (float) z;
         this.r = r;
         this.g = g;
         this.b = b;
@@ -61,9 +86,11 @@ public class Light {
     }
 
     public static final class Builder {
-        private float x = Float.NaN;
-        private float y = Float.NaN;
-        private float z = Float.NaN;
+        // Doubles, so a position survives the builder intact. Narrowing here would throw away
+        // precision before build() ever ran, which is the whole of upstream #8.
+        private double x = Double.NaN;
+        private double y = Double.NaN;
+        private double z = Double.NaN;
         private float r = Float.NaN;
         private float g = Float.NaN;
         private float b = Float.NaN;
@@ -74,7 +101,7 @@ public class Light {
         private float angle = Float.NaN;
 
         public Builder pos(BlockPos pos) {
-            return this.pos((float) pos.getX() + 0.5f, (float) pos.getY() + 0.5f, (float) pos.getZ() + 0.5f);
+            return this.pos(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
         }
 
         public Builder pos(Vec3d pos) {
@@ -86,14 +113,14 @@ public class Light {
         }
 
         public Builder pos(double x, double y, double z) {
-            return this.pos((float) x, (float) y, (float) z);
-        }
-
-        public Builder pos(float x, float y, float z) {
             this.x = x;
             this.y = y;
             this.z = z;
             return this;
+        }
+
+        public Builder pos(float x, float y, float z) {
+            return this.pos((double) x, (double) y, (double) z);
         }
 
         public Builder color(int c, boolean hasAlpha) {
@@ -141,7 +168,7 @@ public class Light {
         }
 
         public Light build() {
-            if (Float.isFinite(this.x) && Float.isFinite(this.y) && Float.isFinite(this.z)
+            if (Double.isFinite(this.x) && Double.isFinite(this.y) && Double.isFinite(this.z)
                     && Float.isFinite(this.r) && Float.isFinite(this.g) && Float.isFinite(this.b) && Float.isFinite(this.a)
                     && Float.isFinite(this.rx) && Float.isFinite(this.ry) && Float.isFinite(this.rz) && Float.isFinite(this.angle)) {
                 return new Light(this.x, this.y, this.z, this.r, this.g, this.b, this.a, this.rx, this.ry, this.rz, this.angle);

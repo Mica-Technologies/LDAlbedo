@@ -11,9 +11,9 @@ struct Light {
 	float angle;
 };
 
-uniform int chunkX;
-uniform int chunkY;
-uniform int chunkZ;
+// Chunk origin relative to the camera. Was three absolute ints; a float cannot hold a
+// block coordinate past 2^23, so absolute positions quantised out there (upstream #8).
+uniform vec3 chunkOffset;
 uniform sampler2D sampler;
 uniform sampler2D lightmap;
 uniform mat4 modelview;
@@ -48,7 +48,7 @@ float angle(vec3 a, vec3 b) {
 void main() {
 	vec4 pos = gl_ModelViewProjectionMatrix * gl_Vertex;
 
-	position = gl_Vertex.xyz+vec3(chunkX,chunkY,chunkZ);
+	position = gl_Vertex.xyz+chunkOffset;
 	vec3 roundedPosition = vec3(0,0,0);
 	roundedPosition.x = floor(position.x+0.66f);
 	roundedPosition.y = floor(position.y+0.66f);

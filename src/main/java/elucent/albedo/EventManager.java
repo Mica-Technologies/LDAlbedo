@@ -26,6 +26,7 @@ import net.minecraft.entity.effect.EntityLightningBolt;
 import net.minecraft.tileentity.TileEntityEndGateway;
 import net.minecraft.tileentity.TileEntityEndPortal;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.DimensionType;
 import net.minecraft.world.World;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -136,6 +137,26 @@ public class EventManager {
         }
     }
 
+    /**
+     * Expresses a world position as an offset from the camera, narrowed to float.
+     *
+     * <p>Every position the shaders work in is camera-relative. Doing the subtraction here, in
+     * double precision, means the float that reaches OpenGL only ever holds a small number --
+     * a few hundred blocks at most -- and stays exact. Handing the shader an absolute
+     * coordinate instead is what made lights snap to a grid past 2^23 blocks out (upstream #8),
+     * since a float simply cannot hold a block coordinate that large.
+     */
+    private static float[] relativeToCamera(double x, double y, double z) {
+        Vec3d camera = LightManager.cameraPos;
+        if (camera == null) {
+            return new float[] {(float) x, (float) y, (float) z};
+        }
+        return new float[] {
+                (float) (x - camera.x),
+                (float) (y - camera.y),
+                (float) (z - camera.z)};
+    }
+
     /** Drops recorded lights that the sweep starting at {@code centre} will not reach. */
     private static void pruneOutOfRange(BlockPos centre, int r) {
         synchronized (EXISTING) {
@@ -157,7 +178,10 @@ public class EventManager {
                 ShaderUtil.fastLightProgram.setUniform("ticks", (float) this.ticks + Minecraft.getMinecraft().getRenderPartialTicks());
                 ShaderUtil.fastLightProgram.setUniform("sampler", 0);
                 ShaderUtil.fastLightProgram.setUniform("lightmap", 1);
-                ShaderUtil.fastLightProgram.setUniform("playerPos", (float) Minecraft.getMinecraft().player.posX, (float) Minecraft.getMinecraft().player.posY, (float) Minecraft.getMinecraft().player.posZ);
+                ShaderUtil.fastLightProgram.setUniform("playerPos", relativeToCamera(
+                        Minecraft.getMinecraft().player.posX,
+                        Minecraft.getMinecraft().player.posY,
+                        Minecraft.getMinecraft().player.posZ));
                 if (!this.postedLights) {
                     synchronized (EXISTING) {
                         EXISTING.forEach((pos, lights) -> LightManager.lights.addAll(lights));
@@ -172,7 +196,10 @@ public class EventManager {
                     ShaderUtil.entityLightProgram.setUniform("sampler", 0);
                     ShaderUtil.entityLightProgram.setUniform("lightmap", 1);
                     LightManager.uploadLights();
-                    ShaderUtil.entityLightProgram.setUniform("playerPos", (float) Minecraft.getMinecraft().player.posX, (float) Minecraft.getMinecraft().player.posY, (float) Minecraft.getMinecraft().player.posZ);
+                    ShaderUtil.entityLightProgram.setUniform("playerPos", relativeToCamera(
+                        Minecraft.getMinecraft().player.posX,
+                        Minecraft.getMinecraft().player.posY,
+                        Minecraft.getMinecraft().player.posZ));
                     ShaderUtil.entityLightProgram.setUniform("lightingEnabled", GL11.glIsEnabled(2896));
                     ShaderUtil.fastLightProgram.useShader();
                     this.postedLights = true;
@@ -186,10 +213,12 @@ public class EventManager {
                 ShaderUtil.fastLightProgram.useShader();
                 ShaderUtil.fastLightProgram.setUniform("sampler", 0);
                 ShaderUtil.fastLightProgram.setUniform("lightmap", 1);
-                ShaderUtil.fastLightProgram.setUniform("playerPos", (float) Minecraft.getMinecraft().player.posX, (float) Minecraft.getMinecraft().player.posY, (float) Minecraft.getMinecraft().player.posZ);
-                ShaderUtil.fastLightProgram.setUniform("chunkX", 0);
-                ShaderUtil.fastLightProgram.setUniform("chunkY", 0);
-                ShaderUtil.fastLightProgram.setUniform("chunkZ", 0);
+                ShaderUtil.fastLightProgram.setUniform("playerPos", relativeToCamera(
+                        Minecraft.getMinecraft().player.posX,
+                        Minecraft.getMinecraft().player.posY,
+                        Minecraft.getMinecraft().player.posZ));
+                // Particle vertices already arrive relative to the camera, so no extra offset.
+                ShaderUtil.fastLightProgram.setUniform("chunkOffset", 0.0f, 0.0f, 0.0f);
             }
             if (event.getSection().compareTo("particles") == 0) {
                 ShaderManager.stopShader();
@@ -219,11 +248,17 @@ public class EventManager {
                 ShaderUtil.fastLightProgram.useShader();
                 ShaderUtil.fastLightProgram.setUniform("sampler", 0);
                 ShaderUtil.fastLightProgram.setUniform("lightmap", 1);
-                ShaderUtil.fastLightProgram.setUniform("playerPos", (float) Minecraft.getMinecraft().player.posX, (float) Minecraft.getMinecraft().player.posY, (float) Minecraft.getMinecraft().player.posZ);
+                ShaderUtil.fastLightProgram.setUniform("playerPos", relativeToCamera(
+                        Minecraft.getMinecraft().player.posX,
+                        Minecraft.getMinecraft().player.posY,
+                        Minecraft.getMinecraft().player.posZ));
             }
             if (event.getSection().compareTo("hand") == 0) {
                 ShaderUtil.entityLightProgram.useShader();
-                ShaderUtil.fastLightProgram.setUniform("entityPos", (float) Minecraft.getMinecraft().player.posX, (float) Minecraft.getMinecraft().player.posY, (float) Minecraft.getMinecraft().player.posZ);
+                ShaderUtil.fastLightProgram.setUniform("entityPos", relativeToCamera(
+                        Minecraft.getMinecraft().player.posX,
+                        Minecraft.getMinecraft().player.posY,
+                        Minecraft.getMinecraft().player.posZ));
                 this.precedesEntities = true;
             }
             if (event.getSection().compareTo("gui") == 0) {
@@ -242,7 +277,10 @@ public class EventManager {
                 ShaderUtil.entityLightProgram.useShader();
             }
             if (ShaderManager.isCurrentShader(ShaderUtil.entityLightProgram)) {
-                ShaderUtil.entityLightProgram.setUniform("entityPos", (float) event.getEntity().posX, (float) event.getEntity().posY + event.getEntity().height / 2.0f, (float) event.getEntity().posZ);
+                ShaderUtil.entityLightProgram.setUniform("entityPos", relativeToCamera(
+                        event.getEntity().posX,
+                        event.getEntity().posY + event.getEntity().height / 2.0f,
+                        event.getEntity().posZ));
             }
         }
     }
@@ -256,7 +294,10 @@ public class EventManager {
                 ShaderUtil.entityLightProgram.useShader();
             }
             if (ShaderManager.isCurrentShader(ShaderUtil.entityLightProgram)) {
-                ShaderUtil.entityLightProgram.setUniform("entityPos", (float) event.getEntity().getPos().getX(), (float) event.getEntity().getPos().getY(), (float) event.getEntity().getPos().getZ());
+                ShaderUtil.entityLightProgram.setUniform("entityPos", relativeToCamera(
+                        event.getEntity().getPos().getX(),
+                        event.getEntity().getPos().getY(),
+                        event.getEntity().getPos().getZ()));
             }
         }
     }
@@ -265,9 +306,8 @@ public class EventManager {
     public void onRenderChunk(RenderChunkUniformsEvent event) {
         if (ConfigManager.isLightingEnabled() && ShaderManager.isCurrentShader(ShaderUtil.fastLightProgram)) {
             BlockPos pos = event.getChunk().getPosition();
-            ShaderUtil.fastLightProgram.setUniform("chunkX", pos.getX());
-            ShaderUtil.fastLightProgram.setUniform("chunkY", pos.getY());
-            ShaderUtil.fastLightProgram.setUniform("chunkZ", pos.getZ());
+            ShaderUtil.fastLightProgram.setUniform("chunkOffset",
+                    relativeToCamera(pos.getX(), pos.getY(), pos.getZ()));
         }
     }
 

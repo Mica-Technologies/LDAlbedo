@@ -150,6 +150,13 @@ public class ShaderManager {
         }
     }
 
+    /** Sets a vec3 from a 3-element array, as produced by the camera-relative helpers. */
+    public void setUniform(String uniform, float[] vec3) {
+        if (ShaderManager.isCurrentShader(this)) {
+            GL20.glUniform3f(GL20.glGetUniformLocation(currentProgram, uniform), vec3[0], vec3[1], vec3[2]);
+        }
+    }
+
     public void setUniform(String uniform, float v1, float v2, float v3) {
         if (ShaderManager.isCurrentShader(this)) {
             GL20.glUniform3f(GL20.glGetUniformLocation(currentProgram, uniform), v1, v2, v3);

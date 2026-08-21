@@ -39,10 +39,17 @@ public class LightManager {
             return;
         }
         shader.setUniform("lightCount", lights.size());
+        // Everything the shader sees is relative to the camera. Subtracting in double precision
+        // and uploading only the offset keeps the numbers small, so the float uniform stays
+        // exact no matter how far from the origin the player is (upstream #8).
+        double camX = cameraPos == null ? 0.0 : cameraPos.x;
+        double camY = cameraPos == null ? 0.0 : cameraPos.y;
+        double camZ = cameraPos == null ? 0.0 : cameraPos.z;
         for (int i = 0; i < Math.min(ConfigManager.maxLights, lights.size()); ++i) {
             if (i >= lights.size()) continue;
             Light l = lights.get(i);
-            shader.setUniform("lights[" + i + "].position", l.x, l.y, l.z);
+            shader.setUniform("lights[" + i + "].position",
+                    (float) (l.worldX - camX), (float) (l.worldY - camY), (float) (l.worldZ - camZ));
             shader.setUniform("lights[" + i + "].color", l.r, l.g, l.b, l.a);
             shader.setUniform("lights[" + i + "].heading", l.rx, l.ry, l.rz);
             shader.setUniform("lights[" + i + "].angle", l.angle);
@@ -68,12 +75,12 @@ public class LightManager {
         float radius = light.radius();
         double cullDistance = radius + ConfigManager.maxDistance;
         if (cameraPos != null
-                && cameraPos.squareDistanceTo(light.x, light.y, light.z) > cullDistance * cullDistance) {
+                && cameraPos.squareDistanceTo(light.worldX, light.worldY, light.worldZ) > cullDistance * cullDistance) {
             return;
         }
         if (camera != null && !camera.isBoundingBoxInFrustum(new AxisAlignedBB(
-                light.x - radius, light.y - radius, light.z - radius,
-                light.x + radius, light.y + radius, light.z + radius))) {
+                light.worldX - radius, light.worldY - radius, light.worldZ - radius,
+                light.worldX + radius, light.worldY + radius, light.worldZ + radius))) {
             return;
         }
         lights.add(light);
@@ -167,7 +174,7 @@ public class LightManager {
 
     /** True when solid geometry stands between {@code eyes} and {@code light}. */
     private static boolean isOccluded(World world, Vec3d eyes, Light light) {
-        Vec3d lightPos = new Vec3d(light.x, light.y, light.z);
+        Vec3d lightPos = new Vec3d(light.worldX, light.worldY, light.worldZ);
         // Blocks without a collision box (air, torches, crops) are ignored, so they do not
         // occlude. Blocks that have one do — including glass, which is the main inaccuracy here.
         RayTraceResult hit = world.rayTraceBlocks(eyes, lightPos, false, true, false);
@@ -187,8 +194,8 @@ public class LightManager {
     public static class DistComparator implements Comparator<Light> {
         @Override
         public int compare(Light a, Light b) {
-            double dist1 = cameraPos.squareDistanceTo(a.x, a.y, a.z);
-            double dist2 = cameraPos.squareDistanceTo(b.x, b.y, b.z);
+            double dist1 = cameraPos.squareDistanceTo(a.worldX, a.worldY, a.worldZ);
+            double dist2 = cameraPos.squareDistanceTo(b.worldX, b.worldY, b.worldZ);
             return Double.compare(dist1, dist2);
         }
     }

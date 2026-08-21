@@ -7,8 +7,6 @@ varying vec4 uv;
 uniform sampler2D sampler;
 uniform sampler2D lightmap;
 uniform vec3 playerPos;
-uniform int chunkX;
-uniform int chunkZ;
 
 float round(float f) {
 	if (fract(f) < 0.5f) {
