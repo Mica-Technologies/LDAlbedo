@@ -34,7 +34,7 @@ void main() {
 
 	//Fog
 	vec3 dv = position-playerPos;
-	float dist = max(sqrt(dv.x*dv.x+dv.y*dv.y+dv.z*dv.z) - gl_Fog.start,0.0f) / (gl_Fog.end-gl_Fog.start);
+	float dist = max(sqrt(dv.x*dv.x+dv.y*dv.y+dv.z*dv.z) - gl_Fog.start,0.0f) / max(gl_Fog.end-gl_Fog.start, 1.0e-4f);
 	float fog = gl_Fog.density * dist;
 	fog = 1.0f-clamp( fog, 0.0f, 1.0f );
 	baseColor = vec4(mix( vec3( gl_Fog.color ), baseColor.xyz, fog ).xyz,baseColor.w);

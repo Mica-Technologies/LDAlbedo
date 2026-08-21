@@ -8,6 +8,11 @@ uniform sampler2D sampler;
 uniform sampler2D lightmap;
 uniform vec3 playerPos;
 
+// Scales how strongly fog affects entities. EventManager has always uploaded this -- 1 normally,
+// 1/64 in the Nether -- but nothing ever declared it, so the write went nowhere and the Nether
+// case did nothing at all.
+uniform float fogIntensity;
+
 
 
 float round(float f) {
@@ -36,8 +41,13 @@ void main() {
 
 	//Fog
 
-	float dist = max((gl_FragCoord.z / gl_FragCoord.w) - gl_Fog.start,0.0f);
-	float fog = gl_Fog.density * dist * gl_Fog.density;
+	// Distance is normalised across the fog band, matching fastlight.fs. Entities previously
+	// used raw depth and multiplied by density twice, so they faded on a completely different
+	// curve from the terrain behind them -- which is why Nether mobs went dark within a few
+	// blocks while the world around them looked fine.
+	float fogBand = max(gl_Fog.end - gl_Fog.start, 1.0e-4f);
+	float dist = max((gl_FragCoord.z / gl_FragCoord.w) - gl_Fog.start,0.0f) / fogBand;
+	float fog = gl_Fog.density * dist * fogIntensity;
 	fog = 1.0f-clamp( fog, 0.0f, 1.0f );
 	baseColor = vec4(mix( vec3( gl_Fog.color ), baseColor.xyz, fog ).xyz,baseColor.w);
 
