@@ -32,6 +32,27 @@ public class ShaderManager {
         OWN_PROGRAMS.add(this.program);
     }
 
+    /**
+     * Releases this program on the GPU. The instance is dead afterwards and must not be bound.
+     *
+     * <p>Removing the id from {@link #OWN_PROGRAMS} is not just tidiness. OpenGL is free to hand
+     * a deleted program's id straight back out to the next caller, so a stale entry here would
+     * eventually match some other mod's brand-new program and convince us it was one of ours --
+     * exactly the misidentification the foreign-shader check exists to prevent.
+     */
+    public void dispose() {
+        if (this.program == 0) {
+            return;
+        }
+        if (currentProgram == this.program) {
+            GL20.glUseProgram(0);
+            currentProgram = -1;
+            currentShader = null;
+        }
+        OWN_PROGRAMS.remove(this.program);
+        GL20.glDeleteProgram(this.program);
+    }
+
     public static ShaderManager getCurrentShader() {
         return currentShader;
     }

@@ -26,18 +26,29 @@ public class ShaderUtil implements ISelectiveResourceReloadListener {
     public static ShaderManager entityLightProgram;
     public static ShaderManager depthProgram;
 
+    /**
+     * Compiles the three programs, releasing any previous set first.
+     *
+     * <p>This runs again on every shader resource reload -- F3+T, a resource pack change, any
+     * mod that reloads resources -- so without the disposal the old programs would be dropped
+     * on the floor still allocated, leaking a little GPU memory each time and leaving their ids
+     * permanently in the "ours" set.
+     */
     public static void init(IResourceManager manager) {
+        disposeProgram(fastLightProgram);
+        disposeProgram(entityLightProgram);
+        disposeProgram(depthProgram);
         fastLightProgram = new ShaderManager(new ResourceLocation("albedo:fastlight"), manager);
         entityLightProgram = new ShaderManager(new ResourceLocation("albedo:entitylight"), manager);
         depthProgram = new ShaderManager(new ResourceLocation("albedo:depth"), manager);
     }
 
-    // TODO: verify SRG mapping - OpenGlHelper's shader-program wrapper names below (glCreateShader,
-    // GL_VERTEX_SHADER/GL_FRAGMENT_SHADER, glAttachShader, glLinkProgram, glCreateProgram, glShaderSource,
-    // glCompileShader, GL_COMPILE_STATUS) were recovered from SRG names in the decompiled production jar
-    // (func_153195_b, field_153209_q/field_153210_r, func_153178_b, func_153179_f, func_153183_d,
-    // func_153169_a, func_153170_c, field_153208_p) with high but not 100% confidence - the compiler will
-    // reject any that are wrong, so fix on first build failure here.
+    private static void disposeProgram(ShaderManager shader) {
+        if (shader != null) {
+            shader.dispose();
+        }
+    }
+
     public static int loadProgram(String vsh, String fsh, IResourceManager manager) {
         int vertexShader = ShaderUtil.createShader(vsh, OpenGlHelper.GL_VERTEX_SHADER, manager);
         int fragmentShader = ShaderUtil.createShader(fsh, OpenGlHelper.GL_FRAGMENT_SHADER, manager);
@@ -47,7 +58,18 @@ public class ShaderUtil implements ISelectiveResourceReloadListener {
         OpenGlHelper.glLinkProgram(program);
         String s = GL20.glGetProgramInfoLog(program, 32768);
         System.out.println("GL LOG: " + s);
+        // The linked program holds its own reference to each shader object, so marking them for
+        // deletion now does not unlink anything -- it just hands the last reference to the
+        // program, and they go when it does. Without this they outlive every program ever built.
+        deleteShader(vertexShader);
+        deleteShader(fragmentShader);
         return program;
+    }
+
+    private static void deleteShader(int shader) {
+        if (shader != 0) {
+            OpenGlHelper.glDeleteShader(shader);
+        }
     }
 
     public static int createShader(String filename, int shaderType, IResourceManager manager) {

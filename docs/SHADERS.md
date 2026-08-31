@@ -4,6 +4,13 @@ GLSL 1.20, fixed-function-era, in `src/main/resources/assets/albedo/shaders/`.
 They are compiled on resource load by `ShaderUtil#init`, so **F3+T reloads
 them** — you do not need to restart the game to iterate on GLSL.
 
+`init` releases the previous three programs before compiling the new ones, and
+`loadProgram` marks each shader object for deletion once it is linked in. Both
+matter because reload can happen any number of times in a session: without them
+every reload would strand a program on the GPU, and the abandoned ids would stay
+in `ShaderManager`'s "programs we own" set forever — where they would eventually
+be handed back out to another mod's new program and be mistaken for ours.
+
 | Program | Used for | Bound during |
 | --- | --- | --- |
 | `fastlight` | Terrain | `terrain`, `litParticles`, `translucent` |
