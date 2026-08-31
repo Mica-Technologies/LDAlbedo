@@ -19,7 +19,6 @@ uniform sampler2D lightmap;
 uniform mat4 modelview;
 uniform Light lights[100];
 uniform int lightCount;
-uniform int maxLights;
 uniform float ticks;
 
 float distSq(vec3 a, vec3 b) {

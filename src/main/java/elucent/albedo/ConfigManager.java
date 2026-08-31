@@ -1,11 +1,12 @@
 package elucent.albedo;
 
+import elucent.albedo.lighting.LightManager;
 import net.minecraftforge.common.config.Config;
 
 @Config(modid = "albedo", name = "Albedo")
 public class ConfigManager {
-    @Config.RangeInt(min = 0, max = 1000)
-    @Config.Comment("The maximum number of lights allowed to render in a scene. Lights are sorted nearest-first, so further-away lights will be culled after nearer lights.")
+    @Config.RangeInt(min = 0, max = LightManager.MAX_SHADER_LIGHTS)
+    @Config.Comment("The maximum number of lights allowed to render in a scene. Lights are sorted nearest-first, so further-away lights will be culled after nearer lights. Capped at 100 because that is how many the shaders declare room for.")
     @Config.LangKey("albedo.config.maxLights")
     public static int maxLights = 40;
 

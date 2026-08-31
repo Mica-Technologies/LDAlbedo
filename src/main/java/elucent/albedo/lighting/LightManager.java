@@ -21,6 +21,13 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 
 public class LightManager {
+    /**
+     * How many lights the shaders can hold, fixed by the {@code uniform Light lights[100]}
+     * declaration in {@code fastlight.vs} and {@code entitylight.vs}. Raising the config above
+     * this does nothing; the extra lights are dropped rather than written past the array.
+     */
+    public static final int MAX_SHADER_LIGHTS = 100;
+
     public static Vec3d cameraPos;
     public static ICamera camera;
     public static ArrayList<Light> lights;
@@ -38,15 +45,20 @@ public class LightManager {
             // has stood down for it. There is nowhere to put these uniforms.
             return;
         }
-        shader.setUniform("lightCount", lights.size());
+        // Only this many lights actually get uniform data written below, so this is what the
+        // shader must be told to read. Reporting lights.size() instead would send it looking at
+        // slots we never filled, which still hold whichever light occupied them last frame --
+        // GL uniforms persist across draws on the same program -- and past index 99 it would run
+        // off the end of the declared array entirely.
+        int uploadCount = Math.min(Math.min(ConfigManager.maxLights, lights.size()), MAX_SHADER_LIGHTS);
+        shader.setUniform("lightCount", uploadCount);
         // Everything the shader sees is relative to the camera. Subtracting in double precision
         // and uploading only the offset keeps the numbers small, so the float uniform stays
         // exact no matter how far from the origin the player is (upstream #8).
         double camX = cameraPos == null ? 0.0 : cameraPos.x;
         double camY = cameraPos == null ? 0.0 : cameraPos.y;
         double camZ = cameraPos == null ? 0.0 : cameraPos.z;
-        for (int i = 0; i < Math.min(ConfigManager.maxLights, lights.size()); ++i) {
-            if (i >= lights.size()) continue;
+        for (int i = 0; i < uploadCount; ++i) {
             Light l = lights.get(i);
             shader.setUniform("lights[" + i + "].position",
                     (float) (l.worldX - camX), (float) (l.worldY - camY), (float) (l.worldZ - camZ));

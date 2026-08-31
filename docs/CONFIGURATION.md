@@ -5,7 +5,7 @@ through `ConfigManager` and are all client-side.
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| `maxLights` | 40 | How many lights may render at once. Lights are sorted nearest-first, so the cap drops the furthest. Also bounds the cost of occlusion. |
+| `maxLights` | 40 | How many lights may render at once. Lights are sorted nearest-first, so the cap drops the furthest. Also bounds the cost of occlusion. Hard-capped at 100 — see below. |
 | `maxDistance` | 64 | Cull radius for lights, and the side of the block-scan volume. Raising it costs cubically — the scan visits `(maxDistance + 1)³` positions per sweep. |
 | `disableLights` | false | Turns Albedo's lighting off entirely. |
 | `holiday` | true | Holiday events. Inherited from upstream. |
@@ -44,8 +44,12 @@ be correct. Expect visual corruption in one or the other.
 
 ## Tuning notes
 
-- **Lights vanish in a busy scene** — raise `maxLights`. The nearest survive, so
-  this shows up as distant lights popping out.
+- **Lights vanish in a busy scene** — raise `maxLights`, up to its ceiling of
+  100. The nearest survive, so this shows up as distant lights popping out.
+  Beyond 100 there is nowhere to put them: the shaders declare
+  `uniform Light lights[100]`, so the cap is a property of the GLSL, not a
+  tuning choice. `LightManager.MAX_SHADER_LIGHTS` is the one place it is
+  written down; raising it means editing both vertex shaders to match.
 - **A light appears about a second after you place the block** — expected. The
   block scan is budgeted across ticks; see
   [LIGHT_COLLECTION.md](LIGHT_COLLECTION.md).

@@ -76,9 +76,17 @@ config comment.
 
 ## Upload
 
-`LightManager#uploadLights` writes the first `maxLights` entries into the bound
-program as `lights[i].position`, `.color`, `.heading` and `.angle`, plus
-`lightCount`.
+`LightManager#uploadLights` writes the first `min(maxLights, MAX_SHADER_LIGHTS)`
+entries into the bound program as `lights[i].position`, `.color`, `.heading` and
+`.angle`, plus `lightCount`.
+
+`lightCount` is that same upload count, **not** how many lights survived culling.
+The two are easy to confuse and the difference matters: the shader loops
+`for (i < lightCount)`, so naming a number larger than what was written sends it
+reading uniform slots this frame never filled. Those slots are not empty — GL
+uniforms persist across draws on the same program — so they still hold whichever
+light sat there on an earlier frame, which renders as a ghost light at a stale
+position and colour. Past index 99 it leaves the declared array altogether.
 
 Positions are uploaded **relative to the camera**: subtracted in double precision
 on the Java side, so the float that reaches OpenGL is small and exact wherever in
