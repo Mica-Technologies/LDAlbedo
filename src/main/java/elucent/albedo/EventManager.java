@@ -255,7 +255,7 @@ public class EventManager {
             }
             if (event.getSection().compareTo("hand") == 0) {
                 ShaderUtil.entityLightProgram.useShader();
-                ShaderUtil.fastLightProgram.setUniform("entityPos", relativeToCamera(
+                ShaderUtil.entityLightProgram.setUniform("entityPos", relativeToCamera(
                         Minecraft.getMinecraft().player.posX,
                         Minecraft.getMinecraft().player.posY,
                         Minecraft.getMinecraft().player.posZ));
