@@ -1,7 +1,16 @@
 # Adding lights from your mod
 
-Everything here is on the **client**. Albedo is `clientSideOnly = true` and does
-not exist on a dedicated server — guard anything that touches it accordingly.
+Albedo loads on both sides, but it only draws on the **client**. On a dedicated
+server it is close to a no-op: the `ILightProvider` capability is registered and
+the block-handler registry exists, so common code can attach the capability and
+register handlers, and a mod can hard-depend on it (`required-after:albedo`).
+Nothing on the server ever calls those handlers or providers; gathering and
+rendering happen only on the client.
+
+Upstream Albedo, up to and including 1.1.0, was `clientSideOnly`. It was dropped
+from a dedicated server's mod list entirely and left the capability `null`
+there. A mod that must also run against those builds still has to guard its
+server-side use.
 
 There are three ways to contribute a light, in rough order of how often you want
 them.

@@ -47,7 +47,8 @@ Upstream released version 1.1.0 in parallel for both 1.12.2 and 1.13.2 in May 20
 
 ```
 src/main/java/elucent/albedo/
-├── Albedo.java              # @Mod entry point — capability registration, block light-handler registry
+├── Albedo.java              # @Mod entry point (loads on both sides) — capability registration, block light-handler registry
+├── AlbedoClient.java        # Client-only startup (shader reload listener, EventManager), called behind a side check
 ├── ConfigManager.java        # Forge Configuration wiring
 ├── EventManager.java         # Central render-pass state machine — reacts to profiler section
 │                              #   changes (via the ASM-injected ProfilerStartEvent) to decide
@@ -93,7 +94,7 @@ src/main/java/elucent/albedo/
 
 ### Entry Points
 
-1. **Mod Entry:** `Albedo.java` — `@Mod` annotated class; registers the `ILightProvider` capability in `preinit` and the resource-reload listener + `EventManager` in `loadComplete`.
+1. **Mod Entry:** `Albedo.java` — `@Mod` annotated class, loaded on **both** sides (`acceptableRemoteVersions = "*"`, no longer `clientSideOnly` as upstream shipped it) so mods that integrate with Albedo can hard-depend on it from a server. Registers the `ILightProvider` capability in `preinit` on both sides; in `loadComplete` it calls `AlbedoClient.init()` on the client only, which adds the resource-reload listener and `EventManager`. `Albedo` itself must never reference a client class.
 2. **Coremod Entry:** `asm/FMLPlugin.java` — loaded via `META-INF/MANIFEST.MF`'s `FMLCorePlugin` entry (set by the `coreModClass` buildscript property, not hand-written), installs `ASMTransformer`.
 3. **Render Hook Bridge:** `util/RenderUtil.java` — the static methods the ASM-injected calls actually invoke.
 

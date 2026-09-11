@@ -4,16 +4,12 @@ import com.google.common.collect.ImmutableMap;
 import elucent.albedo.event.GatherLightsEvent;
 import elucent.albedo.lighting.DefaultLightProvider;
 import elucent.albedo.lighting.ILightProvider;
-import elucent.albedo.util.ShaderUtil;
 import elucent.albedo.util.TriConsumer;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.IReloadableResourceManager;
-import net.minecraft.client.resources.IResourceManagerReloadListener;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
@@ -25,7 +21,17 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
-@Mod(modid = "albedo", version = "1.0.0", clientSideOnly = true, acceptedMinecraftVersions = "[1.12.2]")
+/**
+ * Loads on both sides. Rendering is client-only, but the API is not: a mod that syncs light
+ * settings from the server needs Albedo present there to hard-depend on it, and needs the
+ * {@link ILightProvider} capability registered there to attach it from common code. Upstream
+ * shipped this as {@code clientSideOnly}, which dropped the mod from a dedicated server's mod list
+ * entirely and left the capability {@code null}.
+ *
+ * <p>{@code acceptableRemoteVersions = "*"} keeps connections working when only one side has
+ * Albedo, as they did while it was client-only.
+ */
+@Mod(modid = "albedo", version = "1.0.0", acceptableRemoteVersions = "*", acceptedMinecraftVersions = "[1.12.2]")
 public class Albedo {
     private static final Map<Block, TriConsumer<BlockPos, IBlockState, GatherLightsEvent>> MAP = new HashMap<>();
 
@@ -65,8 +71,8 @@ public class Albedo {
 
     @Mod.EventHandler
     public void loadComplete(FMLPostInitializationEvent event) {
-        ((IReloadableResourceManager) Minecraft.getMinecraft().getResourceManager())
-                .registerReloadListener((IResourceManagerReloadListener) new ShaderUtil());
-        MinecraftForge.EVENT_BUS.register(new EventManager());
+        if (event.getSide().isClient()) {
+            AlbedoClient.init();
+        }
     }
 }
